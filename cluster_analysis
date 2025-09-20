@@ -1,0 +1,49 @@
+from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
+from sklearn.preprocessing import MinMaxScaler
+lst_col = ['возраст', 'среднемесячный расход', 'средняя продолжительность разговоров',
+           'звонки днем', 'звонков вечером', 'звонков ночью',
+           'звонки в другие города', 'доля звонков на стационарные телефоны',
+           'количество смс']
+
+X = df_clients[lst_col]
+# нормализация данных
+sc = MinMaxScaler()
+sc.fit(X)
+X_scaler = sc.transform(X)
+# (x - x_min) / (x_max - x_min)
+# расчет матрицы кластеризации
+z = linkage(X_scaler,
+            method='single',
+            metric='euclidean')
+dendrogram(z,
+           #p=3,
+           #truncate_mode ='lastp'
+           );
+dendrogram(z,
+           p=10,
+           truncate_mode ='lastp'
+           );
+from scipy.cluster.hierarchy import cophenet
+from scipy.spatial.distance import pdist
+
+c, coph_dists = cophenet(z, pdist(X_scaler))
+c
+last = z[-15:, 2] # в матрице связей берем последние 20 значений расстояний между кластерами
+last_rev = last[::-1] #переписываем в обратном порядке
+idxs = np.arange(1, len(last) + 1,1) #генерируем список начальное значение 1, конечное --- число элементов массива, шаг 1
+plt.xlabel('Число кластеров')
+plt.ylabel('Расстояние')
+plt.title('Метод локтя')
+plt.plot(idxs, last_rev) #отображение графика
+
+#далее идет расчет вторых разностей
+acceleration = np.diff(last, 2) #расчет вторых разностей
+acceleration_rev = acceleration[::-1] #переписываем в обратном порядке
+plt.plot(idxs[:-2] + 1, acceleration_rev)
+plt.show()
+k = acceleration_rev.argmax() + 2
+print("clusters:", k)
+# разбиение на кластеры и присвоение меток
+df_clients['number_cluster'] = fcluster(z, t=4, criterion='maxclust')
+# анализ кластеризации
+df_clients.groupby('number_cluster')[lst_col].agg(['mean', 'median'])
